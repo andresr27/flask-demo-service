@@ -1,0 +1,8 @@
+flask
+structlog
+requests
+gunicorn
+#flask_healthz
+#pyctuator
+#prometheus_flask_exporter
+#opentelemetry-exporter-prometheus-remote-write

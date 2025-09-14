@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-service-stable
+  namespace: applications
+  labels:
+    app: flask-demo-service
+    track: stable
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: flask-demo-service
+      track: stable
+  template:
+    metadata:
+      labels:
+        app: flask-demo-service
+        track: stable
+        version: "v1.0.0"
+    spec:
+      containers:
+        - name: demo-service
+          image: tovtoc/demo-services:stable # ${IMAGE_URL}:stable Kustomize and use env var
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: FLIGHTS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: demo-service-secrets
+                  key: flights_api_key
+            - name: API_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: flask-demo-config
+                  key: api_base_url
+            - name: ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: flask-demo-config
+                  key: environment
+          ports:
+            - containerPort: 5000
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: 5000
+            initialDelaySeconds: 1
+            timeoutSeconds: 2
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyness
+              port: 5000
+            initialDelaySeconds: 3
+            timeoutSeconds: 5
+            periodSeconds: 60
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"

@@ -2,10 +2,12 @@
 
 ## Flask-demo in python
 Very simple hello world python Flask application used for testing monitoring related libraries. At the moments it includes:
-    - Basic Liveness/Readyness checks
-    - Structured json logging
-    - Expose metric for Prometheus (TODO)
-    - Canary deployment Strategy (TODO)
+
+    Basic Liveness/Readyness checks
+    Structured json logging
+    To Do  - Expose metric for Prometheus
+    To Do  - Canary deployment with Actions 
+
 
 ### Set the environment
 
@@ -54,7 +56,8 @@ For AWS update secrets in the Kubernetes to be able to pull the new version of t
     --docker-username=AWS \
     --docker-password=$(aws ecr get-login-password) -n applications
 
-Note: This should be handled by the cluster but is not working at the moment for all namespaces.
+Note: This should be handled by the cluster but sometimes we need to refresh credential periodically to be able to download 
+image from the registry.
 
 ### Upload image to the registry
  
@@ -108,7 +111,7 @@ You will now have **two** separate configuration files instead of one:
       
     type: Opaque
     data:
-      flights_api_key: ZXlKMGVYQWlPaUpLVjFRaUxDSmhiR2NpT2lKSVV6STFOaUo5LmV5SnBZWFFpT2pF... # (your encoded key goes here)
+      api_key: ZXlKMGVYQWlnBZWFFpT2pF... # (your encoded key goes here)
     ```
     
 For Production, we want to set this on deployment script: cli.sh
@@ -122,7 +125,6 @@ For Production, we want to set this on deployment script: cli.sh
       name: flask-demo-config
       
     data:
-      image_url: <IMAGE_URL>
       api_base_url: <API_BASE_URL>
     ```
 
@@ -133,16 +135,16 @@ For Production, we want to set this on deployment script: cli.sh
 
     ```yaml
     env:
-    - name: FLIGHTS_API_KEY
+    - name: API_KEY
       valueFrom:
         secretKeyRef:           # <-- CHANGED to secretKeyRef
           name: demo-service-secrets
           key: flights_api_key
-    - name: REGISTRY_URL
+    - name: API_URL
       valueFrom:
-        configMapKeyRef:        # <-- Still configMapKeyRef
+        configMapKeyRef:       
           name: flask-demo-config
-          key: registry_url
+          key: api_base_url
     ```
 
 ---
@@ -168,7 +170,77 @@ You must create the resources in the correct order:
 
 ### **3. Using cli.sh script to deploy change to your cluster**
 
-### **Key Benefit: Security**
+### **4. Python Script for Advanced Canary Analysis**
+
+For more sophisticated canary analysis, create a Python script to automate validation:
+
+**canary-validation.py**:
+```python
+#!/usr/bin/env python3
+
+import requests
+import json
+import os
+import time
+import sys
+from kubernetes import client, config
+
+def validate_canary():
+    # Load Kubernetes config
+    try:
+        config.load_incluster_config()  # When running inside cluster
+    except:
+        config.load_kube_config()  # When running locally
+    
+    v1 = client.CoreV1Api()
+    
+    # Get canary pods
+    canary_pods = v1.list_namespaced_pod(
+        namespace=os.getenv('K8S_NAMESPACE', 'default'),
+        label_selector="track=canary"
+    )
+    
+    if not canary_pods.items:
+        print("No canary pods found!")
+        return False
+    
+    # Test each canary pod
+    success_count = 0
+    for pod in canary_pods.items:
+        pod_name = pod.metadata.name
+        print(f"Testing canary pod: {pod_name}")
+        
+        try:
+            # Execute health check inside the pod
+            resp = requests.get(f"http://{pod.status.pod_ip}:8080/health", timeout=5)
+            if resp.status_code == 200:
+                print(f"✓ Pod {pod_name} health check passed")
+                success_count += 1
+            else:
+                print(f"✗ Pod {pod_name} health check failed: HTTP {resp.status_code}")
+        except Exception as e:
+            print(f"✗ Pod {pod_name} health check error: {str(e)}")
+    
+    # Determine if canary is successful
+    success_rate = success_count / len(canary_pods.items) if canary_pods.items else 0
+    print(f"Canary success rate: {success_rate:.2%}")
+    
+    return success_rate >= 0.8  # Require 80% success rate
+
+if __name__ == "__main__":
+    # Wait a bit for pods to stabilize
+    time.sleep(30)
+    
+    # Run validation
+    if validate_canary():
+        print("Canary validation passed!")
+        sys.exit(0)
+    else:
+        print("Canary validation failed!")
+        sys.exit(1)
+```
+
+### **Key Features**
 
 *   **Separation of Concerns:** Configuration and secrets are managed separately.
 *   **Security:** Secrets are more secure than ConfigMaps. Access to them can be controlled more strictly using Kubernetes **RBAC** (Role-Based Access Control).

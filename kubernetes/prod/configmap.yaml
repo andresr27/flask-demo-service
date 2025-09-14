@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flask-demo-config
+  namespace: applications
+data:
+  api_base_url: 'demo-service.prod-domain.io'
+  environment: 'production'
