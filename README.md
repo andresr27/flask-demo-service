@@ -74,7 +74,7 @@ For AWS update secrets in the Kubernetes to be able to pull the new version of t
     --docker-username=AWS \
     --docker-password=$(aws ecr get-login-password) -n applications
 
-Note: This should be handled by the cluster but sometimes we need to refresh credential periodically to be able to download 
+Note: This should be handled by the cluste, but sometimes we need to refresh credential periodically to be able to download 
 image from the registry.
 
 ### Upload image to the registry
@@ -183,8 +183,10 @@ You must create the resources in the correct order:
 
 For more sophisticated canary analysis we can create a Python script to automate validation and a monitoring agent that 
 we run on schedule to validate endpoints and current deployment status, check this project for more [synthetic-checker.](https://github.com/andresr27/devops_kubernetes_sample/tree/latest_branch/middleware/prod/kubernetes/synthetic-checker)
+
 ```python
 from kubernetes import client, config
+
 
 def validate_canary():
     # Load Kubernetes config
@@ -192,15 +194,15 @@ def validate_canary():
         config.load_incluster_config()  # When running inside cluster
     except:
         config.load_kube_config()  # When running locally
-    
+
     v1 = client.CoreV1Api()
-    
+
     # Get canary pods
     canary_pods = v1.list_namespaced_pod(
         namespace=os.getenv('K8S_NAMESPACE', 'default'),
         label_selector="track=canary"
     )
-    
+
 ```
 
 ### **Key Features**
