@@ -1,22 +1,24 @@
 # Demo services
 
 ## Flask-demo in python
-Very simple hello world python Flask application used for testing monitoring related libraries. At the moments it includes:
+Very simple hello world python Flask application used for testing monitoring related libraries. 
+At the moments it includes:
 
-    Basic Liveness/Readyness checks
-    Structured json logging
-    To Do  - Expose metric for Prometheus
-    To Do  - Canary deployment with Actions 
+- Basic Liveness/Readyness checks 
+- Structured json logging 
+- Expose metric for Prometheus - To Do
+- Canary deployment with Actions - To Do
+- Validate metrics with Zabbix - To Do
+- Send logs to Opensearch - To Do
 
 
-### Set the environment
+
+### Set the environment for local devlopment
 
     virtualenv env
     source env/bin/activate
     pip install -r app/requirements.txt
-    export AWS_PROFILE="wd_test_devops"
-    aws sso login
-    source .env
+
 
 ### Run locally
     python main.py
@@ -36,17 +38,32 @@ Getting [http://127.0.0.1:5001/](http://127.0.0.1:5001/) should return a Json wi
 Getting [http://127.0.0.1:5001/readyness](http://127.0.0.1:5001/readyness) should return "UP"
 
 
-### Deploy demo service to a K8s cluster
+### Deploy demo service to Dev: Minikube or Docker Desktop kubernetes cluster
+
+Start cluster using Docker Desktop UI or using Minikube with:
+
+    minikube start
+
 Namespace must be created if it doesn't exist, in this case we are deploying demo services to applications ns:
     
     kubectl create ns applications
 
+else get the pods that are running.
+
+    kubectl get pods -n applications
+
 For Dev login to the Docker-hub registry:
     
     docker login
-    
-or for prod we are using AWS as an example
+ 
 
+### Deploy demo service to AWS production cluster
+
+Login to AWS:
+
+    export AWS_PROFILE="admin_stage_devops"
+    aws sso login
+    source .env    
     docker login -u AWS -p $(aws ecr get-login-password) ${REGISTRY_URL}
 
 For AWS update secrets in the Kubernetes to be able to pull the new version of the image.   
@@ -65,44 +82,35 @@ image from the registry.
 
 Deploy the Kubernetes artifacts:
 
-    kubectl apply -f kubernetes/dev/
+    kubectl apply -f kubernetes/prod/
     
 ### Test the deployment:
 
-    Getting [http://<cluster-ip>/flask-demo/]() should return a Json with the city flights.
+    Getting [http://<cluster-ip>/flask-demo/]() should return a Json with flights codes.
     Getting [http://<cluster-ip>/flask-demo/readyness]() should return "UP"
 
 Try http://minikube-ip/flask-demo/readyness
 
-Of course. Here is a clear summary in English of the key changes to securely manage your API key using a Kubernetes Secret.
 
 ### Securing Your API Key
 
 The main goal is to move your sensitive API key out of the `configmap.yaml` file and into a dedicated **Kubernetes Secret**, which is a more secure resource for storing sensitive data like passwords, tokens, and keys.
 
----
-
-### **1. New Files & Their Purpose**
-
-You will now have **two** separate configuration files instead of one:
 
 | File | Purpose | What goes inside |
 | :--- | :--- | :--- |
 | **`secret.yaml`** | Stores **sensitive data** (the API key) | Only your encrypted API key |
 | **`configmap.yaml`** | Stores **non-sensitive configuration** | URLs, environment names, feature flags |
 
----
 
-### **2. What Changes in Each File**
-
-**a) The New `secret.yaml` File:**
+**a) The`secret.yaml` File:**
 *   It contains your API key, but the key is **encoded in base64** (which is not encryption, but obfuscation and a requirement for Secrets).
 *   You must **encode your actual API key** before putting it in this file.
     ```bash
     echo -n 'eyJ0eXAiOiJKV1QiLCJhbGc...' | base64
     # This command will output a long encoded string
     ```
-*   The file looks like this, please do not commit:
+*   the kubernetes config:
     ```yaml
     apiVersion: v1
     kind: Secret
@@ -114,7 +122,7 @@ You will now have **two** separate configuration files instead of one:
       api_key: ZXlKMGVYQWlnBZWFFpT2pF... # (your encoded key goes here)
     ```
     
-For Production, we want to set this on deployment script: cli.sh
+For Production, we want to set this on deployment retrieving the key from a dedicated like AWS secrets or Vault.
 
 **b) The Updated `configmap.yaml` File:**
 *   The API key is **removed** from this file. It now only contains safe, non-secret settings.
@@ -125,19 +133,19 @@ For Production, we want to set this on deployment script: cli.sh
       name: flask-demo-config
       
     data:
-      api_base_url: <API_BASE_URL>
+      api_base_url: <API_BASE _URL>
     ```
 
 **c) The Updated `deployment.yaml` File:**
 *   The container's environment variables now pull from the **correct source**:
-    *   `FLIGHTS_API_KEY` now comes from the **Secret** (`secretKeyRef`).
-    *   `IMAGE_URL` and `API_BASE_URL` still come from the **ConfigMap** (`configMapKeyRef`).
+    *   `API_KEY` now comes from the **Secret** (`secretKeyRef`).
+    *   `API_URL` still come from the **ConfigMap** (`configMapKeyRef`).
 
     ```yaml
     env:
     - name: API_KEY
       valueFrom:
-        secretKeyRef:           # <-- CHANGED to secretKeyRef
+        secretKeyRef:           
           name: demo-service-secrets
           key: flights_api_key
     - name: API_URL
@@ -172,17 +180,12 @@ You must create the resources in the correct order:
 
 ### **4. Python Script for Advanced Canary Analysis**
 
-For more sophisticated canary analysis, create a Python script to automate validation:
-
-**canary-validation.py**:
+For more sophisticated canary analysis we can create a Python script to automate validation and a monitoring agent that 
+we run on schedule to validate endpoints and current deployment status, check this project for more [synthetic-checker.](https://github.com/andresr27/devops_kubernetes_sample/tree/latest_branch/middleware/prod/kubernetes/synthetic-checker)
 ```python
 #!/usr/bin/env python3
 
-import requests
-import json
-import os
-import time
-import sys
+import(...)
 from kubernetes import client, config
 
 def validate_canary():
@@ -200,44 +203,6 @@ def validate_canary():
         label_selector="track=canary"
     )
     
-    if not canary_pods.items:
-        print("No canary pods found!")
-        return False
-    
-    # Test each canary pod
-    success_count = 0
-    for pod in canary_pods.items:
-        pod_name = pod.metadata.name
-        print(f"Testing canary pod: {pod_name}")
-        
-        try:
-            # Execute health check inside the pod
-            resp = requests.get(f"http://{pod.status.pod_ip}:8080/health", timeout=5)
-            if resp.status_code == 200:
-                print(f"✓ Pod {pod_name} health check passed")
-                success_count += 1
-            else:
-                print(f"✗ Pod {pod_name} health check failed: HTTP {resp.status_code}")
-        except Exception as e:
-            print(f"✗ Pod {pod_name} health check error: {str(e)}")
-    
-    # Determine if canary is successful
-    success_rate = success_count / len(canary_pods.items) if canary_pods.items else 0
-    print(f"Canary success rate: {success_rate:.2%}")
-    
-    return success_rate >= 0.8  # Require 80% success rate
-
-if __name__ == "__main__":
-    # Wait a bit for pods to stabilize
-    time.sleep(30)
-    
-    # Run validation
-    if validate_canary():
-        print("Canary validation passed!")
-        sys.exit(0)
-    else:
-        print("Canary validation failed!")
-        sys.exit(1)
 ```
 
 ### **Key Features**
