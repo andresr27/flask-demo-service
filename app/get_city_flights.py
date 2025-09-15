@@ -1,11 +1,21 @@
+import os
+import requests
+from json_logs import log
+
+
+# The API key can be obtained free at app.goflightlabs.com
+apiKey = os.getenv("API_KEY", default="")
+apiUrl = f"https://{os.getenv("API_BASE_URL", default="")}"
+airport_city = "MVD"
+
+
 def get_city_flights():
-    airport_city = "MVD"
     try:
-        url = apiUrl + f"flights?access_key=" + apiKey + f"&depIata=" + airport_city
+        url = f"{apiUrl}/flights?access_key={apiKey}&depIata={airport_city}"
     except TypeError as e:
         log.error(e)
 
-    safe_url = apiUrl + f"flights?access_key=" + "#####" + f"&depIata=" + airport_city
+    safe_url = f"{apiUrl}flights?access_key=********&depIata={airport_city}"
     response = ""
     try:
         response = requests.get(url)
@@ -16,6 +26,9 @@ def get_city_flights():
         log.error(response.json())
     except requests.exceptions.HTTPError:
         log.error(response.json())
-        return "Error getting url:" + safe_url
+        return "Error getting url: " + safe_url
+    except requests.exceptions.ConnectionError as e:
+        log.error(f"Failed connection to {safe_url}")
+        return f"Failed connection to {safe_url}:\n {e}"
 
     return response.json()

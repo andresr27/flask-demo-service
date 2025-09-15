@@ -14,7 +14,7 @@ At the moments it includes:
 
 
 
-### Set the environment for local devlopment
+### Set the environment for local development
 
     virtualenv env
     source env/bin/activate
@@ -23,8 +23,9 @@ At the moments it includes:
 
 ### Run locally
     python main.py
-    http://localhost:5000/
     {"event": {"success": false, "message": "invalid access key"}, "level": "error", "ts": "2023-12-08T16:05:50.978294Z"}
+
+    http://localhost:5000/
 
 ### Build image locally
     
@@ -35,8 +36,8 @@ At the moments it includes:
     docker run  -p 5001:5000  ${REGISTRY_URL}/${REPO_NAME}:canary
 
 [//]: # (TODO: this section needs to be improve with Dev local urls, and proper python metrics enabled)
-Getting [http://127.0.0.1:5001/](http://127.0.0.1:5001/) should return a Json with the city flights.
-Getting [http://127.0.0.1:5001/readyness](http://127.0.0.1:5001/readyness) should return "UP"
+- Try Getting [http://127.0.0.1:5001/](http://127.0.0.1:5001/) should return a Json with flights. 
+- Getting [http://127.0.0.1:5001/readyness](http://127.0.0.1:5001/readyness) should return "UP"
 
 
 ### Deploy demo service to Dev: Minikube or Docker Desktop kubernetes cluster
