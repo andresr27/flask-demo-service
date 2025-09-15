@@ -1,4 +1,4 @@
-# Demo services
+# Demo services (Work in progress...)
 
 ## Flask-demo in python
 Very simple hello world python Flask application used for testing monitoring related libraries. 
@@ -6,10 +6,11 @@ At the moments it includes:
 
 - Basic Liveness/Readyness checks 
 - Structured json logging 
-- Expose metric for Prometheus - To Do
-- Canary deployment with Actions - To Do
+- Expose Python metric for Prometheus - To Do
+- Canary deployment with GH Actions - To Do
 - Validate metrics with Zabbix - To Do
 - Send logs to Opensearch - To Do
+- Prod environment in EKS - To Do
 
 
 
@@ -183,9 +184,6 @@ You must create the resources in the correct order:
 For more sophisticated canary analysis we can create a Python script to automate validation and a monitoring agent that 
 we run on schedule to validate endpoints and current deployment status, check this project for more [synthetic-checker.](https://github.com/andresr27/devops_kubernetes_sample/tree/latest_branch/middleware/prod/kubernetes/synthetic-checker)
 ```python
-#!/usr/bin/env python3
-
-import(...)
 from kubernetes import client, config
 
 def validate_canary():
@@ -207,8 +205,7 @@ def validate_canary():
 
 ### **Key Features**
 
-*   **Separation of Concerns:** Configuration and secrets are managed separately.
-*   **Security:** Secrets are more secure than ConfigMaps. Access to them can be controlled more strictly using Kubernetes **RBAC** (Role-Based Access Control).
-*   **Best Practice:** This is the standard and correct way to handle sensitive information in Kubernetes, which is especially important for a DevOps Lead role.
 
-This approach ensures your API key is handled securely according to Kubernetes best practices.
+*   **Security:** Separation of Concerns, configuration and secrets are managed separately. Secrets are more secure than ConfigMaps. Access to them can be controlled more strictly using Kubernetes **RBAC** (Role-Based Access Control).
+*   **High-availability:** Uses Canary deployment with rollout updates and Prometheus metrics validation for increased reliabilty.
+*   **Automation:** From Dev to Prod a client script on Github Actions handles the building, testing, deployment and runs the endpoint validation to create the latest stable version
