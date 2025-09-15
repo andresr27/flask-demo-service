@@ -25,41 +25,42 @@ At the moments it includes:
     python main.py
     {"event": {"success": false, "message": "invalid access key"}, "level": "error", "ts": "2023-12-08T16:05:50.978294Z"}
 
-    http://localhost:5000/
+  - Getting [http://127.0.0.1:5000/](http://127.0.0.1:5001/) should return a Json with flights if api key is working. 
+  - Getting [http://127.0.0.1:5000/readyness](http://127.0.0.1:5001/readyness) should return "UP". Improve with actuators.
 
-### Build image locally
+### Build and Tag image locally
     
     cd app/
-    docker build -t ${REGISTRY_URL}/${REPO_NAME}:canary .
+    docker build -t ${IMAGE_URL}/${DEPLOY_VERSION}-canary .
     
-### Run locally with docker
-    docker run  -p 5001:5000  ${REGISTRY_URL}/${REPO_NAME}:canary
+### Run locally with Docker
+    docker run  -p 5001:5000  ${IMAGE_URL}/${DEPLOY_VERSION}-canary
 
 [//]: # (TODO: this section needs to be improve with Dev local urls, and proper python metrics enabled)
-- Try Getting [http://127.0.0.1:5001/](http://127.0.0.1:5001/) should return a Json with flights. 
-- Getting [http://127.0.0.1:5001/readyness](http://127.0.0.1:5001/readyness) should return "UP"
+- Getting [http://127.0.0.1:5001/](http://127.0.0.1:5001/) should return a Json with flights if api key is working. 
+- Getting [http://127.0.0.1:5001/readyness](http://127.0.0.1:5001/readyness) should return "UP". Improve with actuators.
 
 
-### Deploy demo service to Dev: Minikube or Docker Desktop kubernetes cluster
+### Deploy demo service to Dev
 
-Start cluster using Docker Desktop UI or using Minikube with:
+Start kubernetes cluster using Docker-desktop UI or using Minikube with:
 
     minikube start
-
-Namespace must be created if it doesn't exist, in this case we are deploying demo services to applications ns:
+Or set up your local kubectl context:
     
-    kubectl create ns applications
+    kubectl config use-context minikube
 
-else get the pods that are running.
+
+Get pods running in the applications namespace.
 
     kubectl get pods -n applications
 
-For Dev login to the Docker-hub registry:
+For Dev login to the Docker-hub registry and push image to the repository:
     
     docker login
- 
+    docker push 
 
-### Deploy demo service to AWS production cluster
+### Deploy to AWS production cluster
 
 Login to AWS:
 
@@ -149,7 +150,7 @@ For Production, we want to set this on deployment retrieving the key from a dedi
       valueFrom:
         secretKeyRef:           
           name: demo-service-secrets
-          key: flights_api_key
+          key: api_key
     - name: API_URL
       valueFrom:
         configMapKeyRef:       
@@ -165,20 +166,37 @@ You must create the resources in the correct order:
 
 1.  **Apply the ConfigMap:**
     ```bash
+    kubens applications 
     kubectl apply -f configmap.yaml
     ```
 2.  **Apply the Secret:**
     ```bash
     kubectl apply -f secret.yaml
     ```
-3.  **Apply/Update the Deployment:**
+3.  **Update image version**
     ```bash
-    kubectl apply -f deployment-canary.yaml
-    kubectl apply -f deployment.yaml
+    kubectl set image deployment demo-service-canary demo-service="${IMAGE_URL}":"${DEPLOY_VERSION}"
+    ```
+
+4.  **Apply/Update the Deployment:**
+    ```bash
+    kubectl rollout restart deployment-canary.yaml
+    # Once canary is validated
+    kubectl rollout restart -f deployment.yaml
     ```
 ---
 
-### **3. Using cli.sh script to deploy change to your cluster**
+### **3. Using deploy.sh script to deploy change to your cluster**}
+```bash
+Usage: ./deploy.sh [test | up | down | post]
+    test   : runs the full test suite within the test environment
+    up     : brings up a clean test environment
+    down   : brings down the test environment
+    post   : runs the post build steps
+    deploy <environment> : runs the deployment steps on the give environment
+```
+
+
 
 ### **4. Python Script for Advanced Canary Analysis**
 
