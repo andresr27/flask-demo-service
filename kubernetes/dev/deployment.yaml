@@ -21,14 +21,14 @@ spec:
     spec:
       containers:
         - name: demo-service
-          image: tovtoc/demo-services:stable # ${IMAGE_URL}:stable Kustomize and use env var
+          image: ${IMAGE_URL} # ${IMAGE_URL}:stable Kustomize and use env var
           imagePullPolicy: IfNotPresent
           env:
-            - name: FLIGHTS_API_KEY
+            - name: API_KEY
               valueFrom:
                 secretKeyRef:
                   name: demo-service-secrets
-                  key: flights_api_key
+                  key: api_key
             - name: API_BASE_URL
               valueFrom:
                 configMapKeyRef:
