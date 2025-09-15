@@ -74,7 +74,7 @@ For AWS update secrets in the Kubernetes to be able to pull the new version of t
     --docker-username=AWS \
     --docker-password=$(aws ecr get-login-password) -n applications
 
-Note: This should be handled by the cluster but sometimes we need to refresh credential periodically to be able to download 
+Note: This should be handled by the cluste, but sometimes we need to refresh credential periodically to be able to download 
 image from the registry.
 
 ### Upload image to the registry
