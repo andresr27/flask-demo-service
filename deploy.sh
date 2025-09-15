@@ -10,6 +10,14 @@ function usage {
     echo "    deploy <environment> : runs the deployment steps on the give environment"
 }
 
+function validate {
+    last_return_code=$?
+    if [ $last_return_code -ne 0 ]; then
+        echo "$1 with $last_return_code"
+        exit 1
+    fi
+}
+
 function action_up {
     ENVIRONMENT=$1
     ENVIRONMENT="Dev"
@@ -17,26 +25,18 @@ function action_up {
     if [[ $(mikube status "not running" ) ]]; then
         echo "Starting minikube"
         minikube start
+        minikube addons enable ingress
+        kubectl config use-context minikube
     fi
-    validate_success "Minikube starting failed"
-    echo "Minkube is running"
-
-    ENVIRONMENT="Test"
-
-    if [[ $(mikube status "running") ]]; then
-        echo "Verify test environment is running"
-        action_down
-    fi
-
-    echo "Bringing up a clean test environment..."
-    minikube start
+    validate "Minikube starting failed"
+    echo "Minikube is running and configure for Kubectl"
 }
 
 function action_down {
     echo "Bringing down the test environment..."
-    minikube delete
-    docker volume prune -f >/dev/null
-    validate_success "docker volume prune -f failed"
+    minikube stop
+    #docker volume prune -f >/dev/null
+    #validate "docker volume prune -f failed"
 }
 
 function action_test {
@@ -49,19 +49,19 @@ function action_test {
     # Docker image built
     # We should deployment to force update on change and to be able to rollback to specific versions
     docker build -t "${IMAGE_URL}":canary .
-    validate_success "Docker image build failed"
+    validate "Docker image build failed"
 
     # run unit tests
     #python unittest
-    validate_success "Python unittest failed"
+    #validate "Python unittest failed"
 
     # run integration tests
     # integrationTest
-    validate_success "Python integration tests failed"
+    #validate "Python integration tests failed"
 
     # generate docs
     # bring down the test environment
-    action_down
+    #action_down
 }
 
 function action_post {
@@ -87,45 +87,46 @@ function action_deploy {
     case $ENVIRONMENT in
       dev)
         # ToDo Validate ENV vars are set
-        echo "Deployment for ${IMAGE_URL} Dev in progress..."
+        echo "Deployment for ${IMAGE_URL}:${DEPLOY_VERSION} Dev in progress..."
         ;;
 
       prod)
-        export KUBECONFIG=$PWD/../demo-cluster/${ENVIRONMENT}/config
-        source "$PWD/../demo-cluster/dev/.env"
+        KUBECONFIG="$(aws secrets get-secret --name "${CLUSTER_NAME}" --output text --query Parameter.Value)"
+        export KUBECONFIG
+        echo "Deployment for ${IMAGE_URL} to ${CLUSTER_NAME} in progress..."
         # get aws region being deployed to before changing directory
-            ;;
+        ;;
      *)
         echo "Unknown action ($1)"
         usage
         ;;
     esac
 
-        # switch to the appropriate kubernetes directory
-        pushd "./kubernetes/${ENVIRONMENT}" || exit
+    # switch to the appropriate kubernetes directory
+    pushd "./kubernetes/${ENVIRONMENT}" || exit
 
-        # Edit image
-        kubectl set image deployment.apps/demo-service-canary -n="${NAMESPACE}" "${IMAGE_URL}":"${DEPLOY_VERSION}"
-        kubectl edit add secret demo-service-secrets -n="${NAMESPACE}"--from-literal=APY_KEY="${API_KEY}"
-
-        # Scale up canary
-        kubectl scale deployment/<deployment-name> --replicas=1
-
-        # switch back to the original directory
-        popd || exit
+    # Edit image
+    kubectl set image deployment demo-service-canary -n "${NAMESPACE}" demo-service="${IMAGE_URL}":"${DEPLOY_VERSION}"
+    kubectl patch secret demo-service-secrets -n "${NAMESPACE}" -p="{\"data\":{\"api_key\":\"$(echo -n "${API_KEY}" | base64)\"}}"
 
 
-        # deploy Zabbix alert
-        #export ZABBIX_AUTHORIZATION="$(aws ssm get-parameter --region "$ZABBIX_TOKEN" --name "ZABBIX_CREDENTIALS" --output text --query Parameter.Value)"
-        #export ZABBIX_HOST=$(cat ../deployment/"$REGION"/"$ENVIRONMENT"/grafana-host)
-        #zabbix-deployer deploy
+    # Scale up canary
+    kubectl scale deployment/demo-service-canary --replicas=1
 
-        # Validate Canary and
-        # Promote version
-        # Scale down Canary
+    # switch back to the original directory
+    popd || exit
+
+
+    # deploy Zabbix alert
+    #export ZABBIX_AUTHORIZATION="$(aws ssm get-parameter --name "prod/$ZABBIX_TOKEN" --output text --query Parameter.Value)"
+    #export ZABBIX_HOST=$(cat ../deployment/"$REGION"/"$ENVIRONMENT"/grafana-host)
+    #zabbix-deployer deploy
+
+    # Validate Canary and
+    # Promote version
+    # Scale down Canary
 
 }
-
 
 
 case "$1" in
@@ -141,7 +142,7 @@ case "$1" in
     post)
         action_post
         ;;
-    deploy)
+    canary)
         action_deploy "$2"
         ;;
     *)
