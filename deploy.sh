@@ -4,7 +4,7 @@ source .env
 pushd app || exit
 # lint code
 # Change kubeconfig to minikube, for safety
-docker build -t ${IMAGE_URL}:stable .
+docker build -t "${IMAGE_URL}":stable .
 # if prod docker push
 popd || exit
 
