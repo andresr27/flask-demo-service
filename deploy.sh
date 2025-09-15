@@ -1,10 +1,10 @@
 #!/bin/bash
-# Process the deployment template
+# Deploy to Dev
 source .env
-
 pushd app || exit
 # lint code
-#docker build -t ${IMAGE_URL}:stable .
+# Change kubeconfig to minikube, for safety
+docker build -t ${IMAGE_URL}:stable .
 # if prod docker push
 popd || exit
 
@@ -13,9 +13,6 @@ pushd kubernetes/dev || exit
 kubectl apply -f .
 popd || exit
 
-
-#cat deployment.yaml | envsubst '${IMAGE_URL}' | kubectl apply -f -
-#echo -n $FLIGHTS_API_KEY | base64
 
 
 
