@@ -1,8 +1,10 @@
 import os
 import requests
-from flask import Flask
-from json_logs import log
-from get_city_flights import get_city_flights
+from flask import Flask, Response
+
+from monitoring.json_logs import log
+from monitoring.prometheus import start_server, process_data, get_latest
+from goflights.flights import get_city_flights
 import logging
 
 # Need to stop Flask logging or change it to Json
@@ -11,6 +13,13 @@ app.logger.disabled = True
 app = Flask(__name__)
 app_logger = logging.getLogger('werkzeug')
 app_logger.disabled = True
+
+# Start Prometheus server
+
+@app.route("/metrics")
+def metrics():
+    return Response(get_latest(), mimetype='text/plain')
+
 
 @app.route("/liveness")
 def liveness():

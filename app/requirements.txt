@@ -2,6 +2,7 @@ flask
 structlog
 requests
 gunicorn
+prometheus-client
 #flask_healthz
 #pyctuator
 #prometheus_flask_exporter
