@@ -1,6 +1,6 @@
 import os
 import requests
-from json_logs import log
+from monitoring.json_logs import log
 
 
 # The API key can be obtained free at app.goflightlabs.com

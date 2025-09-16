@@ -27,7 +27,7 @@ At the moments it includes:
 
   - Getting [http://127.0.0.1:5000/](http://127.0.0.1:5001/) should return a Json with flights if api key is working. 
   - Getting [http://127.0.0.1:5000/readyness](http://127.0.0.1:5001/readyness) should return "UP". Improve with actuators.
-
+  - Getting [http://127.0.0.1:5000/metrics](http://127.0.0.1:5001/readyness) should return Prometheus metrics.
 ### Build and Tag image locally
     
     cd app/
